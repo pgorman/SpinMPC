@@ -1,6 +1,6 @@
 # Spinmp #
 
-Spinmp is a simple web-based music player for [mpd](https://www.musicpd.org/).
+Spinmp is a simple web-based music player, a client for [mpd](https://www.musicpd.org/).
 It's written in Go, so it has no dependencies beyond mpd.
 
 ## Configuration ##

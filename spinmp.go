@@ -2,9 +2,14 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"flag"
+	"fmt"
+	"io"
 	"log"
+	"net"
+	"net/http"
 	"os"
 )
 
@@ -24,7 +29,14 @@ type Configuration struct {
 	}
 }
 
+func hdlOK(w http.ResponseWriter, r *http.Request) {
+	io.WriteString(w, "OK")
+}
+
 func main() {
+	/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+	*  Set up configuration from defaults, config file, and command-line flags.
+	* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 	c := flag.String("c", "/etc/spinmp.conf", "Specify the full path to the configuration file.")
 	debug = flag.Bool("d", false, "Turn on debugging messages.")
 	mpdaddr := flag.String("mdpaddr", "", "Specify the address of the interface where MPD listens.")
@@ -98,4 +110,22 @@ func main() {
 			log.Println("INFO: configured web password: ****************************")
 		}
 	}
+
+	/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+	*  Connect to MPD.
+	* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+	conn, err := net.Dial("tcp", conf.MPD.Address+":"+conf.MPD.Port)
+	if err != nil {
+		log.Fatal("ERROR: can't connect to MPD: ", err)
+	}
+	defer conn.Close()
+	conn.Write([]byte("status\n"))
+	status, err := bufio.NewReader(conn).ReadString('\n')
+	fmt.Printf(string(status))
+
+	/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+	*  Start serving web interface.
+	* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+	http.HandleFunc("/", hdlOK)
+	log.Fatal(http.ListenAndServe(conf.Web.Address+":"+conf.Web.Port, nil))
 }

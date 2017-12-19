@@ -1,11 +1,10 @@
-// Spinmp is a music player client for mpd.
+// SpinMPC is a music player client for mpd.
 package main
 
 import (
 	"bufio"
 	"encoding/json"
 	"flag"
-	"fmt"
 	"io"
 	"log"
 	"net"
@@ -42,9 +41,9 @@ func main() {
 	mpdaddr := flag.String("mdpaddr", "", "Specify the address of the interface where MPD listens.")
 	mpdport := flag.String("mdpport", "", "Specify the port on which MPD listens.")
 	mpdpass := flag.String("mdppass", "", "Specify password required by MPD (if any).")
-	webaddr := flag.String("webaddr", "", "Specify the address of the interface where Spinmp serves its web interface.")
-	webport := flag.String("webport", "", "Specify the port on which Spinmp serves its web interface.")
-	webpass := flag.String("webpass", "", "Password to require for access to Spinmp's web interface.")
+	webaddr := flag.String("webaddr", "", "Specify the address of the interface where SpinMPC serves its web interface.")
+	webport := flag.String("webport", "", "Specify the port on which SpinMPC serves its web interface.")
+	webpass := flag.String("webpass", "", "Password to require for access to SpinMPC's web interface.")
 	flag.Parse()
 
 	conf := Configuration{}
@@ -121,7 +120,12 @@ func main() {
 	defer conn.Close()
 	conn.Write([]byte("status\n"))
 	status, err := bufio.NewReader(conn).ReadString('\n')
-	fmt.Printf(string(status))
+	if err != nil {
+		log.Println("WARN: can't get MPD status: ", err)
+	}
+	if conf.Debug {
+		log.Println("INFO: testing connection to MPD:", string(status))
+	}
 
 	/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 	*  Start serving web interface.

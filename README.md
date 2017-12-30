@@ -1,7 +1,7 @@
 # SpinMPC #
 
 SpinMPC is a simple web-based music player, a client for [mpd](https://www.musicpd.org/).
-It's written in Go, so it has no dependencies beyond mpd.
+It's written in Go.
 
 ## Configuration ##
 
@@ -21,6 +21,7 @@ Here's a sample configuration file:
 			"Address": "",
 			"Port": "8870",
 			"Password": ""
+			"Root": "./"
 		}
 	}
 
@@ -33,6 +34,13 @@ If no password is specified in the configuration file, SpinMPC allows anyone tha
 ## Troubleshooting ##
 
 Enable debugging output with the `-d` flag.
+
+## Links ##
+
+- https://musicpd.org/
+- https://musicpd.org/doc/protocol/
+- https://wiki.archlinux.org/index.php/Music_Player_Daemon/Troubleshooting
+- https://github.com/fhs/gompd
 
 ## License (GPL) ##
 

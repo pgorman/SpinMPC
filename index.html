@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="spinmpc.css" />
+<title>SpinMPC</title>
+<style>
+	body {
+		background: #333;
+		color: #ffbf00;
+		font-family: sans-serif;
+		font-size: 18pt;
+	}
+	#controls {
+		text-align: center;
+		vertical-align: middle;
+	}
+	.control {
+		color: #ffbf00;
+		display: inline-block;
+		font-size: 6rem;
+		outline: 0;
+		text-align: center;
+		text-decoration: none;
+		width: 2.5em;
+	}
+	a.control:active {
+		color: #daa200;
+	}
+	#display {
+		text-align: center;
+	}
+	#songalbum {
+		font-style: italic;
+	}
+</style>
+</head>
+<body>
+
+<p id="controls">
+	<a id="next" onclick="Previous();" href="#" class="control">&#x23EE;</a>
+	<a id="stop" onclick="Stop();" href="#" class="control">&#9726;</a>
+	<a id="pause" onclick="Pause();" href="#" class="control">&#9646;&#9646;</a>
+	<a id="play" onclick="Play();" href="#" class="control">&#9654;</a>
+	<a id="next" onclick="Next();" href="#" class="control">&#x23ED;</a>
+</p>
+
+<div id="display">
+<p id="songinfo">
+	<span id="songartist">Unknown Artist</span> — 
+	"<span id="songtitle">Unknown Song Title</span>" — 
+	<span id="songalbum">Unknown Album</span>
+</p>
+</div>
+
+<script>
+function CurrentSong() {
+	fetch('/api/v1/currentsong').then(function(response) {
+		return response.json();
+	}).then(function(json) {
+		console.log(json);
+		document.getElementById("songartist").innerHTML = json.Artist;
+		document.getElementById("songtitle").innerHTML = json.Title;
+		document.getElementById("songalbum").innerHTML = json.Album;
+	}).catch(function(err) {
+		console.log(err);
+	})
+}
+
+function Stop() {
+	fetch('/api/v1/stop').catch(function(err) {
+		console.log(err);
+	})
+}
+
+function Pause() {
+	fetch('/api/v1/pause').catch(function(err) {
+		console.log(err);
+	})
+}
+
+function Play() {
+	fetch('/api/v1/play').then(function(response) {
+		return response.text();
+	}).then(function(text) {
+		CurrentSong();
+	}).catch(function(err) {
+		console.log(err);
+	})
+}
+
+function Next() {
+	fetch('/api/v1/next').then(function(response) {
+		return response.text();
+	}).then(function(text) {
+		CurrentSong();
+	}).catch(function(err) {
+		console.log(err);
+	})
+}
+
+function Previous() {
+	fetch('/api/v1/previous').then(function(response) {
+		return response.text();
+	}).then(function(text) {
+		console.log(text);
+	}).catch(function(err) {
+		console.log(err);
+	})
+}
+</script>
+
+</body>

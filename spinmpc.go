@@ -82,7 +82,7 @@ func main() {
 	/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 	*  Set up configuration from defaults, config file, and command-line flags.
 	* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-	c := flag.String("c", "/etc/spinmp.conf", "Specify the full path to the configuration file.")
+	c := flag.String("c", "/etc/spinmpc.conf", "Specify the full path to the configuration file.")
 	debug = flag.Bool("d", false, "Turn on debugging messages.")
 	mpdaddr := flag.String("mdpaddr", "", "Specify the address of the interface where MPD listens.")
 	mpdport := flag.String("mdpport", "", "Specify the port on which MPD listens.")

@@ -25,7 +25,12 @@
 		text-decoration: none;
 		width: 2.5em;
 	}
-	a.control:active {
+	a {
+		color: #ffbf00;
+		outline: 0;
+		text-decoration: none;
+	}
+	a:active {
 		color: #daa200;
 	}
 	#display {
@@ -34,15 +39,21 @@
 	#songalbum {
 		font-style: italic;
 	}
+	#songsearch {
+		font-size: 2.25rem;
+		padding-left: 1.25em;
+	}
+	#footer {
+		font-size: 0.5rem;
+		margin-top: 4rem;
+	}
 </style>
 </head>
 <body>
 
 <p id="controls">
-	<a id="next" onclick="Previous();" href="#" class="control">&#x23EE;</a>
-	<a id="stop" onclick="Stop();" href="#" class="control">&#9726;</a>
-	<a id="pause" onclick="Pause();" href="#" class="control">&#9646;&#9646;</a>
-	<a id="play" onclick="Play();" href="#" class="control">&#9654;</a>
+	<a id="previous" onclick="Previous();" href="#" class="control">&#x23EE;</a>
+	<a id="pauseplay" onclick="PausePlay();" href="#" class="control">&#9654;</a>
 	<a id="next" onclick="Next();" href="#" class="control">&#x23ED;</a>
 </p>
 
@@ -51,43 +62,66 @@
 	<span id="songartist">Unknown Artist</span> — 
 	"<span id="songtitle">Unknown Song Title</span>" — 
 	<span id="songalbum">Unknown Album</span>
+	<a id="songsearch" href="">&#x1F6C8;</a>
 </p>
 </div>
 
+<div id="footer"><a href="https://github.com/pgorman/SpinMPC">SpinMPC</a></a></div>
+
 <script>
+function SongSearch() {
+}
+
 function CurrentSong() {
 	fetch('/api/v1/currentsong').then(function(response) {
 		return response.json();
 	}).then(function(json) {
-		console.log(json);
 		document.getElementById("songartist").innerHTML = json.Artist;
 		document.getElementById("songtitle").innerHTML = json.Title;
 		document.getElementById("songalbum").innerHTML = json.Album;
+		document.getElementById("songsearch").setAttribute("href", json.SearchURL);
 	}).catch(function(err) {
 		console.log(err);
 	})
 }
 
-function Stop() {
-	fetch('/api/v1/stop').catch(function(err) {
-		console.log(err);
-	})
-}
-
-function Pause() {
-	fetch('/api/v1/pause').catch(function(err) {
-		console.log(err);
-	})
-}
-
-function Play() {
-	fetch('/api/v1/play').then(function(response) {
-		return response.text();
-	}).then(function(text) {
-		CurrentSong();
+function PausePlay() {
+	fetch('/api/v1/status').then(function(response) {
+		return response.json();
+	}).then(function(json) {
+		if (json.state != "play") {
+			fetch('/api/v1/play').then(function() {
+				Refresh();
+			}).catch(function(err) {
+				console.log(err);
+			})
+		} else {
+			fetch('/api/v1/pause').then(function() {
+				Refresh();
+			}).catch(function(err) {
+				console.log(err);
+			})
+		}
 	}).catch(function(err) {
 		console.log(err);
 	})
+}
+
+function Refresh() {
+	var playglyph = "&#9654;";
+	var pauseglyph = "&#9646;&#9646;";
+	fetch('/api/v1/status').then(function(response) {
+		return response.json();
+	}).then(function(json) {
+		if (json.state != "play") {
+			document.getElementById("pauseplay").innerHTML = playglyph;
+		} else {
+			document.getElementById("pauseplay").innerHTML = pauseglyph;
+		}
+	}).catch(function(err) {
+		console.log(err);
+	})
+	CurrentSong();
 }
 
 function Next() {
@@ -109,6 +143,12 @@ function Previous() {
 		console.log(err);
 	})
 }
+
+setInterval(function() {
+	Refresh();
+}, 5000);
+
+Refresh()
 </script>
 
 </body>

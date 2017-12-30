@@ -30,6 +30,7 @@ type Configuration struct {
 		Port     string
 		Password string
 		Root     string
+		Search   string
 	}
 }
 
@@ -90,6 +91,7 @@ func main() {
 	webport := flag.String("webport", "", "Specify the port on which SpinMPC serves its web interface.")
 	webpass := flag.String("webpass", "", "Password to require for access to SpinMPC's web interface.")
 	webroot := flag.String("webroot", "", "Directory from which to serve SpinMPC's web documents.")
+	websearch := flag.String("websearch", "", "Set base URL for web searches.")
 	flag.Parse()
 
 	conf := Configuration{}
@@ -101,6 +103,7 @@ func main() {
 	conf.Web.Port = "8870"
 	conf.Web.Password = ""
 	conf.Web.Root = "./"
+	conf.Web.Search = "https://duckduckgo.com/?q="
 
 	f, err := os.Open(*c)
 	if err != nil {
@@ -137,6 +140,9 @@ func main() {
 	if *webroot != "" {
 		conf.Web.Root = *webroot
 	}
+	if *websearch != "" {
+		conf.Web.Search = *websearch
+	}
 
 	if conf.Debug {
 		log.Println("INFO: configured debug mode:", conf.Debug)
@@ -159,6 +165,7 @@ func main() {
 			log.Println("INFO: configured web password: ****************************")
 		}
 		log.Println("INFO: configured web root:", conf.Web.Root)
+		log.Println("INFO: configured web search base:", conf.Web.Search)
 	}
 
 	/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -232,6 +239,13 @@ func main() {
 		json.NewEncoder(w).Encode(s)
 	})
 
+	http.HandleFunc("/api/v1/status", func(w http.ResponseWriter, r *http.Request) {
+		s, err := conn.Status()
+		if err != nil {
+			log.Println("WARN: failed to get MPD status: ", err)
+		}
+		json.NewEncoder(w).Encode(s)
+	})
 	http.Handle("/status", &Status{conn})
 	log.Fatal(http.ListenAndServe(conf.Web.Address+":"+conf.Web.Port, nil))
 }

@@ -59,16 +59,27 @@ func (h *Status) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // fillPlaylist populates the default playlist with all files in the database.
 func fillPlaylist(conn *mpd.Client) {
+	songs, err := conn.PlaylistInfo(-1, -1)
+	if err != nil {
+		log.Println("WARN: failed to get current playlist: ", err)
+	}
+	// Don't clobber the current playlist if it's already populated!
+	if len(songs) > 0 {
+		if *debug {
+			log.Println("INFO: Playlist already populated. Abandoning 'fillPlaylist'.")
+		}
+		return
+	}
 	err = conn.Clear()
 	if err != nil {
 		log.Println("WARN: failed to clear playlist: ", err)
 	}
-	songs, err := conn.GetFiles()
+	songs, err = conn.ListAllInfo("/")
 	if err != nil {
 		log.Println(err)
 	}
 	for _, s := range songs {
-		err = conn.Add(s)
+		err = conn.Add(s["file"])
 		if err != nil {
 			log.Println("WARN: can't add file to playlist: ", err)
 		}

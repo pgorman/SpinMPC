@@ -80,7 +80,7 @@ func keepAlive(conn *mpd.Client) {
 	for {
 		err = conn.Ping()
 		if err != nil {
-			log.Println("WARN: can't pring MPD: ", err)
+			log.Println("WARN: can't ping MPD: ", err)
 		}
 		time.Sleep(time.Second * 5)
 	}

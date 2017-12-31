@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"strings"
@@ -47,16 +48,12 @@ func (h *Status) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	for k, v := range status {
 		io.WriteString(w, strings.Join([]string{"MPD status: ", k, ": ", v, "\n"}, ""))
 	}
-}
-
-// keepAlive keeps our connection to MPD open.
-func keepAlive(conn *mpd.Client) {
-	for {
-		err = conn.Ping()
-		if err != nil {
-			log.Println("WARN: can't pring MPD: ", err)
-		}
-		time.Sleep(time.Second * 5)
+	stats, err := h.conn.Stats()
+	if err != nil {
+		io.WriteString(w, strings.Join([]string{"Can't get MPD stats: ", err.Error(), "\n"}, ""))
+	}
+	for k, v := range stats {
+		io.WriteString(w, strings.Join([]string{"MPD stat: ", k, ": ", v, "\n"}, ""))
 	}
 }
 
@@ -76,6 +73,23 @@ func fillPlaylist(conn *mpd.Client) {
 			log.Println("WARN: can't add file to playlist: ", err)
 		}
 	}
+}
+
+// keepAlive keeps our connection to MPD open.
+func keepAlive(conn *mpd.Client) {
+	for {
+		err = conn.Ping()
+		if err != nil {
+			log.Println("WARN: can't pring MPD: ", err)
+		}
+		time.Sleep(time.Second * 5)
+	}
+}
+
+// searchURL constructs a URL to web search a song.
+func searchURL(conf *Configuration, song map[string]string) string {
+	q := url.QueryEscape(strings.Join([]string{"\"", song["Artist"], "\" \"", song["Title"], "\" \"", song["Album"], "\""}, ""))
+	return strings.Join([]string{conf.Web.Search, q}, "")
 }
 
 func main() {
@@ -186,8 +200,27 @@ func main() {
 			log.Println("INFO: MPD status:", k, v)
 		}
 	}
+	stats, err := conn.Stats()
+	if err != nil {
+		log.Println("WARN: can't get MPD stats: ", err)
+	}
+	if conf.Debug {
+		log.Println("INFO: fetching MPD stats...")
+		for k, v := range stats {
+			log.Println("INFO: MPD stat:", k, v)
+		}
+	}
 	go keepAlive(conn)
 	fillPlaylist(conn)
+	// Start and immiately stop, so there's a song populated in "status".
+	err = conn.Play(-1)
+	if err != nil {
+		log.Println("WARN: failed to stop playback: ", err)
+	}
+	err = conn.Stop()
+	if err != nil {
+		log.Println("WARN: failed to stop playback: ", err)
+	}
 
 	/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 	*  Start serving web interface.
@@ -196,17 +229,19 @@ func main() {
 		http.ServeFile(w, r, path.Join(conf.Web.Root, "index.html"))
 	})
 
-	http.HandleFunc("/api/v1/stop", func(w http.ResponseWriter, r *http.Request) {
-		err = conn.Stop()
+	http.HandleFunc("/api/v1/currentsong", func(w http.ResponseWriter, r *http.Request) {
+		s, err := conn.CurrentSong()
 		if err != nil {
-			log.Println("WARN: failed to stop playback: ", err)
+			log.Println("WARN: failed to get current song info: ", err)
 		}
+		s["SearchURL"] = searchURL(&conf, s)
+		json.NewEncoder(w).Encode(s)
 	})
 
-	http.HandleFunc("/api/v1/play", func(w http.ResponseWriter, r *http.Request) {
-		err = conn.Play(-1)
+	http.HandleFunc("/api/v1/next", func(w http.ResponseWriter, r *http.Request) {
+		err = conn.Next()
 		if err != nil {
-			log.Println("WARN: failed to play: ", err)
+			log.Println("WARN: failed to skip to next track: ", err)
 		}
 	})
 
@@ -217,10 +252,10 @@ func main() {
 		}
 	})
 
-	http.HandleFunc("/api/v1/next", func(w http.ResponseWriter, r *http.Request) {
-		err = conn.Next()
+	http.HandleFunc("/api/v1/play", func(w http.ResponseWriter, r *http.Request) {
+		err = conn.Play(-1)
 		if err != nil {
-			log.Println("WARN: failed to skip to next track: ", err)
+			log.Println("WARN: failed to play: ", err)
 		}
 	})
 
@@ -231,14 +266,6 @@ func main() {
 		}
 	})
 
-	http.HandleFunc("/api/v1/currentsong", func(w http.ResponseWriter, r *http.Request) {
-		s, err := conn.CurrentSong()
-		if err != nil {
-			log.Println("WARN: failed to get current song info: ", err)
-		}
-		json.NewEncoder(w).Encode(s)
-	})
-
 	http.HandleFunc("/api/v1/status", func(w http.ResponseWriter, r *http.Request) {
 		s, err := conn.Status()
 		if err != nil {
@@ -246,6 +273,14 @@ func main() {
 		}
 		json.NewEncoder(w).Encode(s)
 	})
+
+	http.HandleFunc("/api/v1/stop", func(w http.ResponseWriter, r *http.Request) {
+		err = conn.Stop()
+		if err != nil {
+			log.Println("WARN: failed to stop playback: ", err)
+		}
+	})
+
 	http.Handle("/status", &Status{conn})
 	log.Fatal(http.ListenAndServe(conf.Web.Address+":"+conf.Web.Port, nil))
 }

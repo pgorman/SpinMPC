@@ -3,18 +3,22 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="stylesheet" href="spinmpc.css" />
 <title>SpinMPC</title>
 <style>
 	body {
 		background: #333;
 		color: #ffbf00;
-		font-family: sans-serif;
+		font-family: monospace;
 		font-size: 18pt;
 	}
-	#controls {
-		text-align: center;
-		vertical-align: middle;
+	a {
+		color: #ffbf00;
+		font-weight: bold;
+		outline: 0;
+		text-decoration: none;
+	}
+	a:active {
+		color: #daa200;
 	}
 	.control {
 		color: #ffbf00;
@@ -23,15 +27,14 @@
 		outline: 0;
 		text-align: center;
 		text-decoration: none;
-		width: 2.5em;
+		width: 3em;
 	}
-	a {
-		color: #ffbf00;
-		outline: 0;
-		text-decoration: none;
+	#controls {
+		text-align: center;
+		vertical-align: middle;
 	}
-	a:active {
-		color: #daa200;
+	#previous, #next {
+		font-size: 2rem;
 	}
 	#display {
 		text-align: center;
@@ -44,7 +47,7 @@
 		padding-left: 1.25em;
 	}
 	#footer {
-		font-size: 0.5rem;
+		font-size: 0.8rem;
 		margin-top: 4rem;
 	}
 </style>
@@ -52,9 +55,9 @@
 <body>
 
 <p id="controls">
-	<a id="previous" onclick="Previous();" href="#" class="control">&#x23EE;</a>
-	<a id="pauseplay" onclick="PausePlay();" href="#" class="control">&#9654;</a>
-	<a id="next" onclick="Next();" href="#" class="control">&#x23ED;</a>
+	<a id="previous" onclick="Previous();" href="#" class="control">|&lt;&lt;</a>
+	<a id="pauseplay" onclick="PausePlay();" href="#" class="control">||</a>
+	<a id="next" onclick="Next();" href="#" class="control">>>|</a>
 </p>
 
 <div id="display">
@@ -62,16 +65,13 @@
 	<span id="songartist">Unknown Artist</span> — 
 	"<span id="songtitle">Unknown Song Title</span>" — 
 	<span id="songalbum">Unknown Album</span>
-	<a id="songsearch" href="">&#x1F6C8;</a>
+	<a id="songsearch" href="">?</a>
 </p>
 </div>
 
 <div id="footer"><a href="https://github.com/pgorman/SpinMPC">SpinMPC</a></a></div>
 
 <script>
-function SongSearch() {
-}
-
 function CurrentSong() {
 	fetch('/api/v1/currentsong').then(function(response) {
 		return response.json();
@@ -108,8 +108,8 @@ function PausePlay() {
 }
 
 function Refresh() {
-	var playglyph = "&#9654;";
-	var pauseglyph = "&#9646;&#9646;";
+	var playglyph = ">";
+	var pauseglyph = "||";
 	fetch('/api/v1/status').then(function(response) {
 		return response.json();
 	}).then(function(json) {

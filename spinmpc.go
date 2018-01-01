@@ -4,7 +4,6 @@ package main
 import (
 	"encoding/json"
 	"flag"
-	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -35,78 +34,8 @@ type Configuration struct {
 	}
 }
 
-type Status struct {
-	conn *mpd.Client
-}
-
-func (h *Status) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	io.WriteString(w, "SpinMPC web interface: OK\n")
-	status, err := h.conn.Status()
-	if err != nil {
-		io.WriteString(w, strings.Join([]string{"Can't get MPD status: ", err.Error(), "\n"}, ""))
-	}
-	for k, v := range status {
-		io.WriteString(w, strings.Join([]string{"MPD status: ", k, ": ", v, "\n"}, ""))
-	}
-	stats, err := h.conn.Stats()
-	if err != nil {
-		io.WriteString(w, strings.Join([]string{"Can't get MPD stats: ", err.Error(), "\n"}, ""))
-	}
-	for k, v := range stats {
-		io.WriteString(w, strings.Join([]string{"MPD stat: ", k, ": ", v, "\n"}, ""))
-	}
-}
-
-// fillPlaylist populates the default playlist with all files in the database.
-func fillPlaylist(conn *mpd.Client) {
-	songs, err := conn.PlaylistInfo(-1, -1)
-	if err != nil {
-		log.Println("WARN: failed to get current playlist: ", err)
-	}
-	// Don't clobber the current playlist if it's already populated!
-	if len(songs) > 0 {
-		if *debug {
-			log.Println("INFO: Playlist already populated. Abandoning 'fillPlaylist'.")
-		}
-		return
-	}
-	err = conn.Clear()
-	if err != nil {
-		log.Println("WARN: failed to clear playlist: ", err)
-	}
-	songs, err = conn.ListAllInfo("/")
-	if err != nil {
-		log.Println(err)
-	}
-	for _, s := range songs {
-		err = conn.Add(s["file"])
-		if err != nil {
-			log.Println("WARN: can't add file to playlist: ", err)
-		}
-	}
-}
-
-// keepAlive keeps our connection to MPD open.
-func keepAlive(conn *mpd.Client) {
-	for {
-		err = conn.Ping()
-		if err != nil {
-			log.Println("WARN: can't ping MPD: ", err)
-		}
-		time.Sleep(time.Second * 5)
-	}
-}
-
-// searchURL constructs a URL to web search a song.
-func searchURL(conf *Configuration, song map[string]string) string {
-	q := url.QueryEscape(strings.Join([]string{"\"", song["Artist"], "\" \"", song["Title"], "\" \"", song["Album"], "\""}, ""))
-	return strings.Join([]string{conf.Web.Search, q}, "")
-}
-
-func main() {
-	/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-	*  Set up configuration from defaults, config file, and command-line flags.
-	* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+// Configure selects settings from defaults, the config file, and command-line flags.
+func Configure() Configuration {
 	c := flag.String("c", "/etc/spinmpc.conf", "Specify the full path to the configuration file.")
 	debug = flag.Bool("d", false, "Turn on debugging messages.")
 	mpdaddr := flag.String("mdpaddr", "", "Specify the address of the interface where MPD listens.")
@@ -192,38 +121,67 @@ func main() {
 		log.Println("INFO: configured web root:", conf.Web.Root)
 		log.Println("INFO: configured web search base:", conf.Web.Search)
 	}
+	return conf
+}
 
-	/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-	*  Connect to MPD.
-	* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+// ConnectMPD connects to the music player daemon.
+func ConnectMPD(conf *Configuration) *mpd.Client {
 	conn, err := mpd.Dial("tcp", conf.MPD.Address+":"+conf.MPD.Port)
 	if err != nil {
 		log.Fatal("ERROR: can't connect to MPD: ", err)
 	}
-	defer conn.Close()
-	status, err := conn.Status()
-	if err != nil {
-		log.Println("WARN: can't get MPD status: ", err)
-	}
 	if conf.Debug {
+		log.Println("INFO: successfully connected to MPD.")
+		status, err := conn.Status()
+		if err != nil {
+			log.Println("WARN: can't get MPD status: ", err)
+		}
 		log.Println("INFO: checking initial MPD status...")
 		for k, v := range status {
 			log.Println("INFO: MPD status:", k, v)
 		}
-	}
-	stats, err := conn.Stats()
-	if err != nil {
-		log.Println("WARN: can't get MPD stats: ", err)
-	}
-	if conf.Debug {
+		stats, err := conn.Stats()
+		if err != nil {
+			log.Println("WARN: can't get MPD stats: ", err)
+		}
 		log.Println("INFO: fetching MPD stats...")
 		for k, v := range stats {
 			log.Println("INFO: MPD stat:", k, v)
 		}
 	}
-	go keepAlive(conn)
-	fillPlaylist(conn)
-	// Start and immiately stop, so there's a song populated in "status".
+	return conn
+}
+
+// FillPlaylist populates an empty default playlist with all files in the database.
+func FillPlaylist(conn *mpd.Client) {
+	songs, err := conn.PlaylistInfo(-1, -1)
+	if err != nil {
+		log.Println("WARN: failed to get current playlist: ", err)
+	}
+	// Don't clobber the current playlist if it's already populated!
+	if len(songs) > 0 {
+		if *debug {
+			log.Println("INFO: Playlist already populated. Abandoning 'fillPlaylist'.")
+		}
+		return
+	}
+
+	err = conn.Clear()
+	if err != nil {
+		log.Println("WARN: failed to clear playlist: ", err)
+	}
+	songs, err = conn.ListAllInfo("/")
+	if err != nil {
+		log.Println(err)
+	}
+	for _, s := range songs {
+		err = conn.Add(s["file"])
+		if err != nil {
+			log.Println("WARN: can't add file to playlist: ", err)
+		}
+	}
+
+	// Start and immiately stop, so there's a song populated in "status". Why is this needed?
 	err = conn.Play(-1)
 	if err != nil {
 		log.Println("WARN: failed to stop playback: ", err)
@@ -232,10 +190,32 @@ func main() {
 	if err != nil {
 		log.Println("WARN: failed to stop playback: ", err)
 	}
+}
 
-	/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-	*  Start serving web interface.
-	* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+// KeepAlive keeps our connection to MPD open.
+func KeepAlive(conn *mpd.Client) {
+	for {
+		err = conn.Ping()
+		if err != nil {
+			log.Println("WARN: can't ping MPD: ", err)
+		}
+		time.Sleep(time.Second * 5)
+	}
+}
+
+// SearchURL constructs a URL to web search a song.
+func SearchURL(conf *Configuration, song map[string]string) string {
+	q := url.QueryEscape(strings.Join([]string{"\"", song["Artist"], "\" \"", song["Title"], "\" \"", song["Album"], "\""}, ""))
+	return strings.Join([]string{conf.Web.Search, q}, "")
+}
+
+func main() {
+	conf := Configure()
+	conn := ConnectMPD(&conf)
+	defer conn.Close()
+	go KeepAlive(conn)
+	FillPlaylist(conn)
+
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, path.Join(conf.Web.Root, "index.html"))
 	})
@@ -245,7 +225,7 @@ func main() {
 		if err != nil {
 			log.Println("WARN: failed to get current song info: ", err)
 		}
-		s["SearchURL"] = searchURL(&conf, s)
+		s["SearchURL"] = SearchURL(&conf, s)
 		json.NewEncoder(w).Encode(s)
 	})
 
@@ -292,6 +272,5 @@ func main() {
 		}
 	})
 
-	http.Handle("/status", &Status{conn})
 	log.Fatal(http.ListenAndServe(conf.Web.Address+":"+conf.Web.Port, nil))
 }

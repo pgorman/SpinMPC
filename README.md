@@ -25,7 +25,7 @@ Here's a sample configuration file:
 		"Web": {
 			"Address": "",
 			"Port": "8870",
-			"Password": ""
+			"Password": "",
 			"Root": "/var/www/spinmpc"
 		}
 	}

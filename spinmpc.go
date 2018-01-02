@@ -4,6 +4,7 @@ package main
 import (
 	"encoding/json"
 	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"net/url"
@@ -203,6 +204,19 @@ func KeepAlive(conn *mpd.Client) {
 	}
 }
 
+// Playlists gets a list of playlists from MPD.
+func Playlists(conn *mpd.Client) ([]string, error) {
+	pa, err := conn.ListPlaylists()
+	if err != nil {
+		err = fmt.Errorf("WARN: failed to get playlists from MPD: %v", err)
+	}
+	playlists := make([]string, len(pa))
+	for i := 0; i < len(pa); i++ {
+		playlists[i] = pa[i]["playlist"]
+	}
+	return playlists, err
+}
+
 // SearchURL constructs a URL to web search a song.
 func SearchURL(conf *Configuration, song map[string]string) string {
 	q := url.QueryEscape(strings.Join([]string{"\"", song["Artist"], "\" \"", song["Title"], "\" \"", song["Album"], "\""}, ""))
@@ -227,6 +241,14 @@ func main() {
 		}
 		s["SearchURL"] = SearchURL(&conf, s)
 		json.NewEncoder(w).Encode(s)
+	})
+
+	http.HandleFunc("/api/v1/playlists", func(w http.ResponseWriter, r *http.Request) {
+		playlists, err := Playlists(conn)
+		if err != nil {
+			log.Println(err)
+		}
+		json.NewEncoder(w).Encode(playlists)
 	})
 
 	http.HandleFunc("/api/v1/next", func(w http.ResponseWriter, r *http.Request) {
@@ -270,6 +292,20 @@ func main() {
 		if err != nil {
 			log.Println("WARN: failed to stop playback: ", err)
 		}
+	})
+
+	http.HandleFunc("/api/v1/test", func(w http.ResponseWriter, r *http.Request) {
+		log.Println("TEST")
+		decoder := json.NewDecoder(r.Body)
+		var t = struct {
+			Playlist string `json:"playlist"`
+		}{}
+		err := decoder.Decode(&t)
+		if err != nil {
+			log.Println(err)
+		}
+		defer r.Body.Close()
+		log.Println(t.Playlist)
 	})
 
 	log.Fatal(http.ListenAndServe(conf.Web.Address+":"+conf.Web.Port, nil))

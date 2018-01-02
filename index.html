@@ -60,7 +60,7 @@
 </head>
 <body>
 
-<p class="header"><a href="" id="header">≡</a></p>
+<p class="header"><a href="#" id="header" onclick="Test();">≡</a></p>
 
 <p id="controls">
 	<a id="previous" onclick="Previous();" href="#" class="control">|&lt;&lt;</a>
@@ -80,6 +80,23 @@
 <div id="footer"><a href="https://github.com/pgorman/SpinMPC">SpinMPC</a></a></div>
 
 <script>
+function Test() {
+	fetch('/api/v1/test', {
+		method: "POST",
+		headers: {
+			'Accept': 'application/json',
+			'Content-Type': 'application/json'
+		},
+		body: JSON.stringify({
+			playlist: "my cool playlist"
+		})
+	}).then(function(response) {
+			return response.text();
+	}).catch(function(err) {
+		console.log(err);
+	})
+}
+
 function CurrentSong() {
 	fetch('/api/v1/currentsong').then(function(response) {
 		return response.json();

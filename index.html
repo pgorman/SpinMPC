@@ -71,7 +71,7 @@
 		top: 3.75rem;
 		z-index: 99;
 	}
-	#playlists {
+	#playlists, #advanced {
 		display: none;
 	}
 </style>
@@ -85,6 +85,8 @@
 		<li><a href="#" onclick="FocusControls();"</a>Controls</a></li>
 		<li><a href="#" onclick="FocusPlaylists();"</a>Playlists</a></li>
 		<li><a href="#" onclick="Test();">Test</a></li>
+		<li><a href="#" onclick="FocusAdvanced();">Advanced</a></li>
+		<li><a href="https://github.com/pgorman/SpinMPC">About SpinMPC</a></li>
 	</ul>
 </div>
 
@@ -109,7 +111,9 @@
 <h2>Playlists</h2>
 </div>
 
-<div id="footer"><a href="https://github.com/pgorman/SpinMPC">SpinMPC</a></a></div>
+<div id="advanced">
+<h2>Advanced</h2>
+</div>
 
 <script>
 function Test() {
@@ -142,18 +146,29 @@ function CurrentSong() {
 	})
 }
 
+function FocusAdvanced() {
+	var a = document.getElementById("advanced");
+	var c = document.getElementById("controls");
+	var m = document.getElementById("menu");
+	var p = document.getElementById("playlists");
+	m.style.display = "none";
+	c.style.display = "none";
+	p.style.display = "none";
+	a.style.display = "block";
+}
+
 function FocusControls() {
+	var a = document.getElementById("advanced");
 	var c = document.getElementById("controls");
 	var p = document.getElementById("playlists");
 	var m = document.getElementById("menu");
+	a.style.display = "none";
 	m.style.display = "none";
 	p.style.display = "none";
 	c.style.display = "block";
 }
 
 function FocusMenu() {
-	var c = document.getElementById("controls");
-	var p = document.getElementById("playlists");
 	var m = document.getElementById("menu");
 	var displayState = window.getComputedStyle(m).getPropertyValue("display");
 	if (displayState == "none") {
@@ -164,13 +179,16 @@ function FocusMenu() {
 }
 
 function FocusPlaylists() {
+	var a = document.getElementById("advanced");
 	var c = document.getElementById("controls");
 	var m = document.getElementById("menu");
 	var p = document.getElementById("playlists");
+	a.style.display = "none";
 	m.style.display = "none";
 	c.style.display = "none";
 	p.style.display = "block";
 }
+
 function Next() {
 	fetch("/api/v1/next").then(function(response) {
 		return response.text();

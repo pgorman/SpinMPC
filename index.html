@@ -20,6 +20,10 @@
 	a:active {
 		color: #daa200;
 	}
+	li {
+		line-height: 1.5em;
+		list-style: none;
+	}
 	.control {
 		color: #ffbf00;
 		display: inline-block;
@@ -56,13 +60,36 @@
 		margin: 1rem 2rem 0 0;
 		text-align: right;
 	}
+	#menu {
+		background: inherit;
+		border: 2px solid #8c6900;
+		display: none;
+		text-align: right;
+		padding: 1em;
+		position: absolute;
+		right: 2.5rem;
+		top: 3.75rem;
+		z-index: 99;
+	}
+	#playlists {
+		display: none;
+	}
 </style>
 </head>
 <body>
 
-<p class="header"><a href="#" id="header" onclick="Test();">≡</a></p>
+<p class="header"><a href="#" id="header" onclick="FocusMenu();">≡</a></p>
 
-<p id="controls">
+<div id="menu">
+	<ul>
+		<li><a href="#" onclick="FocusControls();"</a>Controls</a></li>
+		<li><a href="#" onclick="FocusPlaylists();"</a>Playlists</a></li>
+		<li><a href="#" onclick="Test();">Test</a></li>
+	</ul>
+</div>
+
+<div id="controls">
+<p>
 	<a id="previous" onclick="Previous();" href="#" class="control">|&lt;&lt;</a>
 	<a id="pauseplay" onclick="PausePlay();" href="#" class="control">||</a>
 	<a id="next" onclick="Next();" href="#" class="control">>>|</a>
@@ -76,16 +103,21 @@
 	<a id="songsearch" href="">?</a>
 </p>
 </div>
+</div>
+
+<div id="playlists">
+<h2>Playlists</h2>
+</div>
 
 <div id="footer"><a href="https://github.com/pgorman/SpinMPC">SpinMPC</a></a></div>
 
 <script>
 function Test() {
-	fetch('/api/v1/test', {
+	fetch("/api/v1/test", {
 		method: "POST",
 		headers: {
-			'Accept': 'application/json',
-			'Content-Type': 'application/json'
+			"Accept": "application/json",
+			"Content-Type": "application/json"
 		},
 		body: JSON.stringify({
 			playlist: "my cool playlist"
@@ -98,7 +130,7 @@ function Test() {
 }
 
 function CurrentSong() {
-	fetch('/api/v1/currentsong').then(function(response) {
+	fetch("/api/v1/currentsong").then(function(response) {
 		return response.json();
 	}).then(function(json) {
 		document.getElementById("songartist").innerHTML = json.Artist;
@@ -110,18 +142,57 @@ function CurrentSong() {
 	})
 }
 
+function FocusControls() {
+	var c = document.getElementById("controls");
+	var p = document.getElementById("playlists");
+	var m = document.getElementById("menu");
+	m.style.display = "none";
+	p.style.display = "none";
+	c.style.display = "block";
+}
+
+function FocusMenu() {
+	var c = document.getElementById("controls");
+	var p = document.getElementById("playlists");
+	var m = document.getElementById("menu");
+	var displayState = window.getComputedStyle(m).getPropertyValue("display");
+	if (displayState == "none") {
+		m.style.display = "block";
+	} else {
+		m.style.display = "none";
+	}
+}
+
+function FocusPlaylists() {
+	var c = document.getElementById("controls");
+	var m = document.getElementById("menu");
+	var p = document.getElementById("playlists");
+	m.style.display = "none";
+	c.style.display = "none";
+	p.style.display = "block";
+}
+function Next() {
+	fetch("/api/v1/next").then(function(response) {
+		return response.text();
+	}).then(function(text) {
+		CurrentSong();
+	}).catch(function(err) {
+		console.log(err);
+	})
+}
+
 function PausePlay() {
-	fetch('/api/v1/status').then(function(response) {
+	fetch("/api/v1/status").then(function(response) {
 		return response.json();
 	}).then(function(json) {
 		if (json.state != "play") {
-			fetch('/api/v1/play').then(function() {
+			fetch("/api/v1/play").then(function() {
 				Refresh();
 			}).catch(function(err) {
 				console.log(err);
 			})
 		} else {
-			fetch('/api/v1/pause').then(function() {
+			fetch("/api/v1/pause").then(function() {
 				Refresh();
 			}).catch(function(err) {
 				console.log(err);
@@ -132,10 +203,20 @@ function PausePlay() {
 	})
 }
 
+function Previous() {
+	fetch("/api/v1/previous").then(function(response) {
+		return response.text();
+	}).then(function(text) {
+		console.log(text);
+	}).catch(function(err) {
+		console.log(err);
+	})
+}
+
 function Refresh() {
 	var playglyph = ">";
 	var pauseglyph = "||";
-	fetch('/api/v1/status').then(function(response) {
+	fetch("/api/v1/status").then(function(response) {
 		return response.json();
 	}).then(function(json) {
 		if (json.state != "play") {
@@ -147,26 +228,6 @@ function Refresh() {
 		console.log(err);
 	})
 	CurrentSong();
-}
-
-function Next() {
-	fetch('/api/v1/next').then(function(response) {
-		return response.text();
-	}).then(function(text) {
-		CurrentSong();
-	}).catch(function(err) {
-		console.log(err);
-	})
-}
-
-function Previous() {
-	fetch('/api/v1/previous').then(function(response) {
-		return response.text();
-	}).then(function(text) {
-		console.log(text);
-	}).catch(function(err) {
-		console.log(err);
-	})
 }
 
 setInterval(function() {

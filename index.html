@@ -113,6 +113,9 @@
 
 <div id="advanced">
 <h2>Advanced</h2>
+<p>
+	<a id="reconnect" onclick="Reconnect();" href="#">Reconnect to MPD</a>
+</p>
 </div>
 
 <script>
@@ -223,6 +226,16 @@ function PausePlay() {
 
 function Previous() {
 	fetch("/api/v1/previous").then(function(response) {
+		return response.text();
+	}).then(function(text) {
+		console.log(text);
+	}).catch(function(err) {
+		console.log(err);
+	})
+}
+
+function Reconnect() {
+	fetch("/api/v1/reconnect").then(function(response) {
 		return response.text();
 	}).then(function(text) {
 		console.log(text);

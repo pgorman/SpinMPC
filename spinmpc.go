@@ -194,11 +194,18 @@ func FillPlaylist(conn *mpd.Client) {
 }
 
 // KeepAlive keeps our connection to MPD open.
-func KeepAlive(conn *mpd.Client) {
+func KeepAlive(conn **mpd.Client, conf *Configuration) {
+	retries := 0
 	for {
-		err = conn.Ping()
+		c := *conn
+		err := c.Ping()
 		if err != nil {
 			log.Println("WARN: can't ping MPD: ", err)
+			retries++
+			if retries > 3 {
+				Reconnect(conn, conf)
+				retries = 0
+			}
 		}
 		time.Sleep(time.Second * 5)
 	}
@@ -217,6 +224,19 @@ func Playlists(conn *mpd.Client) ([]string, error) {
 	return playlists, err
 }
 
+// Reconnect closes the current connection to MPD and opens a new one.
+func Reconnect(conn **mpd.Client, conf *Configuration) error {
+	var err error
+	if conf.Debug {
+		log.Println("INFO: reconnecting to MPD.")
+	}
+	oldc := *conn
+	*conn = ConnectMPD(conf)
+	oldc.Close()
+	// TODO Make ConnectMPD returns errors, and return them in turn.
+	return err
+}
+
 // SearchURL constructs a URL to web search a song.
 func SearchURL(conf *Configuration, song map[string]string) string {
 	q := url.QueryEscape(strings.Join([]string{"\"", song["Artist"], "\" \"", song["Title"], "\" \"", song["Album"], "\""}, ""))
@@ -225,17 +245,22 @@ func SearchURL(conf *Configuration, song map[string]string) string {
 
 func main() {
 	conf := Configure()
-	conn := ConnectMPD(&conf)
-	defer conn.Close()
-	go KeepAlive(conn)
-	FillPlaylist(conn)
+	// This pointer to the pointer to the mpd.Client ugliness lets us
+	// connect a new client if the old one dies by substituting in the new
+	// pointer.
+	var conn **mpd.Client
+	c := ConnectMPD(&conf)
+	conn = &c
+	defer (*conn).Close()
+	go KeepAlive(conn, &conf)
+	FillPlaylist(*conn)
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, path.Join(conf.Web.Root, "index.html"))
 	})
 
 	http.HandleFunc("/api/v1/currentsong", func(w http.ResponseWriter, r *http.Request) {
-		s, err := conn.CurrentSong()
+		s, err := (*conn).CurrentSong()
 		if err != nil {
 			log.Println("WARN: failed to get current song info: ", err)
 		}
@@ -244,7 +269,7 @@ func main() {
 	})
 
 	http.HandleFunc("/api/v1/playlists", func(w http.ResponseWriter, r *http.Request) {
-		playlists, err := Playlists(conn)
+		playlists, err := Playlists(*conn)
 		if err != nil {
 			log.Println(err)
 		}
@@ -252,35 +277,42 @@ func main() {
 	})
 
 	http.HandleFunc("/api/v1/next", func(w http.ResponseWriter, r *http.Request) {
-		err = conn.Next()
+		err = (*conn).Next()
 		if err != nil {
 			log.Println("WARN: failed to skip to next track: ", err)
 		}
 	})
 
 	http.HandleFunc("/api/v1/pause", func(w http.ResponseWriter, r *http.Request) {
-		err = conn.Pause(true)
+		err = (*conn).Pause(true)
 		if err != nil {
 			log.Println("WARN: failed to pause: ", err)
 		}
 	})
 
 	http.HandleFunc("/api/v1/play", func(w http.ResponseWriter, r *http.Request) {
-		err = conn.Play(-1)
+		err = (*conn).Play(-1)
 		if err != nil {
 			log.Println("WARN: failed to play: ", err)
 		}
 	})
 
 	http.HandleFunc("/api/v1/previous", func(w http.ResponseWriter, r *http.Request) {
-		err = conn.Previous()
+		err = (*conn).Previous()
 		if err != nil {
 			log.Println("WARN: failed to skip to previous track: ", err)
 		}
 	})
 
+	http.HandleFunc("/api/v1/reconnect", func(w http.ResponseWriter, r *http.Request) {
+		err = Reconnect(conn, &conf)
+		if err != nil {
+			log.Println("WARN: failed to reconnect to MPD: ", err)
+		}
+	})
+
 	http.HandleFunc("/api/v1/status", func(w http.ResponseWriter, r *http.Request) {
-		s, err := conn.Status()
+		s, err := (*conn).Status()
 		if err != nil {
 			log.Println("WARN: failed to get MPD status: ", err)
 		}
@@ -288,7 +320,7 @@ func main() {
 	})
 
 	http.HandleFunc("/api/v1/stop", func(w http.ResponseWriter, r *http.Request) {
-		err = conn.Stop()
+		err = (*conn).Stop()
 		if err != nil {
 			log.Println("WARN: failed to stop playback: ", err)
 		}

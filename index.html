@@ -119,10 +119,9 @@
 
 <div id="playlists">
 <h2>Playlists</h2>
-<ul>
+<ul id="playlistlist">
 	<li><a onclick="ClearQueue();" href="#">Clear Current Play Queue</a></li>
 	<li><a onclick="AllSongs();" href="#">All Songs (Random Play)</a></li>
-	<li></li>
 </ul>
 </div>
 
@@ -229,6 +228,7 @@ function FocusPlaylists() {
 	m.style.display = "none";
 	c.style.display = "none";
 	p.style.display = "block";
+	ListPlaylists();
 }
 
 function KillMPD() {
@@ -283,6 +283,41 @@ function PausePlay() {
 	})
 }
 
+function ListPlaylists() {
+	fetch("/api/v1/listplaylists").then(function(response) {
+		return response.json();
+	}).then(function(json) {
+		var ul = document.getElementById("playlistlist");
+		json.forEach(function(pl) {
+			var a = document.createElement("a");
+			a.appendChild(document.createTextNode(pl.playlist));
+			a.href = "#";
+			a.setAttribute("onclick", "PlaylistLoad('"+pl.playlist+"');");
+			var li = document.createElement("li");
+			li.appendChild(a);
+			ul.appendChild(li);
+		})
+	}).catch(function(err) {
+		console.log(err);
+	})
+}
+
+function PlaylistLoad(pl) {
+	fetch("/api/v1/playlistload", {
+		method: "POST",
+		headers: {
+			"Accept": "application/json",
+			"Content-Type": "application/json"
+		},
+		body: JSON.stringify({
+			playlist: pl
+		})
+	}).then(function(response) {
+			return response.text();
+	}).catch(function(err) {
+		console.log(err);
+	})
+}
 function Previous() {
 	fetch("/api/v1/previous").then(function(response) {
 		return response.text();

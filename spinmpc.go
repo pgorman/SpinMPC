@@ -139,7 +139,7 @@ func ConnectMPD(conf *Configuration) *mpd.Client {
 		log.Fatal("ERROR: can't connect to MPD: ", err)
 	}
 	if conf.Debug {
-		log.Println("INFO: successfully connected to MPD.")
+		log.Println("INFO: successfully connected to MPD")
 		status, err := conn.Status()
 		if err != nil {
 			log.Println("WARN: can't get MPD status: ", err)
@@ -189,16 +189,7 @@ func FillPlaylist(conn *mpd.Client) error {
 			err = fmt.Errorf("WARN: can't add file to playlist: %v", err)
 		}
 	}
-
-	// Start and immiately stop, so there's a song populated in "status". Why is this needed?
-	err = conn.Play(-1)
-	if err != nil {
-		err = fmt.Errorf("WARN: failed to stop playback: %v", err)
-	}
-	err = conn.Stop()
-	if err != nil {
-		fmt.Errorf("WARN: failed to stop playback: %v", err)
-	}
+	StartStop(conn)
 	return err
 }
 
@@ -250,6 +241,20 @@ func Reconnect(conn **mpd.Client, conf *Configuration) error {
 func SearchURL(conf *Configuration, song map[string]string) string {
 	q := url.QueryEscape(strings.Join([]string{"\"", song["Artist"], "\" \"", song["Title"], "\" \"", song["Album"], "\""}, ""))
 	return strings.Join([]string{conf.Web.Search, q}, "")
+}
+
+// StartStop starts and immiately stop, so there's a song populated in "status". Why is this needed?
+func StartStop(conn *mpd.Client) error {
+	var err error
+	err = conn.Play(-1)
+	if err != nil {
+		err = fmt.Errorf("WARN: failed to stop playback: %v", err)
+	}
+	err = conn.Stop()
+	if err != nil {
+		fmt.Errorf("WARN: failed to stop playback: %v", err)
+	}
+	return err
 }
 
 func main() {
@@ -313,6 +318,14 @@ func main() {
 		}
 	})
 
+	http.HandleFunc("/api/v1/listplaylists", func(w http.ResponseWriter, r *http.Request) {
+		pls, err := (*conn).ListPlaylists()
+		if err != nil {
+			log.Println("WARN: failed to get playlists: ", err)
+		}
+		json.NewEncoder(w).Encode(pls)
+	})
+
 	http.HandleFunc("/api/v1/next", func(w http.ResponseWriter, r *http.Request) {
 		err = (*conn).Next()
 		if err != nil {
@@ -331,6 +344,34 @@ func main() {
 		err = (*conn).Play(-1)
 		if err != nil {
 			log.Println("WARN: failed to play: ", err)
+		}
+	})
+
+	http.HandleFunc("/api/v1/playlistload", func(w http.ResponseWriter, r *http.Request) {
+		var err error
+		decoder := json.NewDecoder(r.Body)
+		var p = struct {
+			Playlist string `json:"playlist"`
+		}{}
+		err = decoder.Decode(&p)
+		if err != nil {
+			log.Println(err)
+		}
+		defer r.Body.Close()
+		err = (*conn).Clear()
+		if err != nil {
+			log.Println("WARN: failed to clear play queue: ", err)
+		}
+		err = (*conn).PlaylistLoad(p.Playlist, -1, -1)
+		if err != nil {
+			log.Println("WARN: failed to load playlist: ", err)
+		}
+		err = StartStop(*conn)
+		if err != nil {
+			log.Println(err)
+		}
+		if conf.Debug {
+			log.Printf("INFO: loaded  playlist '%v'\n", p.Playlist)
 		}
 	})
 

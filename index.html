@@ -5,11 +5,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>SpinMPC</title>
 <style>
+	html {
+		height: 98%;
+	}
 	body {
-		background: #333;
+		background: #222;
+		background-image: radial-gradient(circle at top, #333, #222 60%);
+		background-repeat: no-repeat;
 		color: #ffbf00;
 		font-family: monospace;
 		font-size: 18pt;
+		height: 97%;
+		margin: 0;
 	}
 	a {
 		color: #ffbf00;
@@ -21,17 +28,17 @@
 		color: #daa200;
 	}
 	li {
-		line-height: 1.5em;
+		line-height: 4rem;
 		list-style: none;
 	}
 	.control {
 		color: #ffbf00;
 		display: inline-block;
-		font-size: 6rem;
+		font-size: 4rem;
 		outline: 0;
 		text-align: center;
 		text-decoration: none;
-		width: 3em;
+		width: 2.5em;
 	}
 	#controls {
 		text-align: center;
@@ -57,22 +64,26 @@
 	}
 	.header {
 		font-size: 3rem;
-		margin: 1rem 2rem 0 0;
+		margin: 2.5rem 3rem 0 0;
 		text-align: right;
 	}
 	#menu {
 		background: inherit;
+		background-image: radial-gradient(farthest-corner, #333, #222);
+		background-repeat: no-repeat;
 		border: 2px solid #8c6900;
 		display: none;
 		text-align: right;
-		padding: 1em;
+		padding: 1.5rem 2.5rem 1rem 0.5rem;
 		position: absolute;
-		right: 2.5rem;
-		top: 3.75rem;
+		right: 3rem;
+		top: 5.5rem;
 		z-index: 99;
 	}
 	#playlists, #advanced {
 		display: none;
+		padding: 2rem;
+		margin-left: 10%;
 	}
 </style>
 </head>
@@ -84,7 +95,6 @@
 	<ul>
 		<li><a href="#" onclick="FocusControls();"</a>Controls</a></li>
 		<li><a href="#" onclick="FocusPlaylists();"</a>Playlists</a></li>
-		<li><a href="#" onclick="Test();">Test</a></li>
 		<li><a href="#" onclick="FocusAdvanced();">Advanced</a></li>
 		<li><a href="https://github.com/pgorman/SpinMPC">About SpinMPC</a></li>
 	</ul>
@@ -109,13 +119,22 @@
 
 <div id="playlists">
 <h2>Playlists</h2>
+<ul>
+	<li><a onclick="ClearQueue();" href="#">Clear Current Play Queue</a></li>
+	<li><a onclick="AllSongs();" href="#">All Songs (Random Play)</a></li>
+	<li></li>
+</ul>
 </div>
 
 <div id="advanced">
 <h2>Advanced</h2>
-<p>
-	<a id="reconnect" onclick="Reconnect();" href="#">Reconnect to MPD</a>
-</p>
+<ul>
+	<li><a id="reconnect" onclick="Reconnect();" href="#">Reconnect to MPD</a></li>
+	<li><a id="reconnect" onclick="UpdateMPDatabase();" href="#">Update MPD Database</a></li>
+	<li><a id="reconnect" onclick="KillMPD();" href="#">Kill MPD &dagger;</a></li>
+	<li><a id="reconnect" onclick="KillSpinMPC();" href="#">Kill SpinMPC &dagger;</a></li>
+</ul>
+<p style="font-size: 1rem;">&dagger; This only helps if a supervisor (e.g., runit, s6, systemd) is waiting to restart the process.</p>
 </div>
 
 <script>
@@ -131,6 +150,26 @@ function Test() {
 		})
 	}).then(function(response) {
 			return response.text();
+	}).catch(function(err) {
+		console.log(err);
+	})
+}
+
+function AllSongs() {
+	fetch("/api/v1/allsongs").then(function(response) {
+		return response.text();
+	}).then(function(text) {
+		CurrentSong();
+	}).catch(function(err) {
+		console.log(err);
+	})
+}
+
+function ClearQueue() {
+	fetch("/api/v1/clearqueue").then(function(response) {
+		return response.text();
+	}).then(function(text) {
+		CurrentSong();
 	}).catch(function(err) {
 		console.log(err);
 	})
@@ -190,6 +229,26 @@ function FocusPlaylists() {
 	m.style.display = "none";
 	c.style.display = "none";
 	p.style.display = "block";
+}
+
+function KillMPD() {
+	fetch("/api/v1/killmpd").then(function(response) {
+		return response.text();
+	}).then(function(text) {
+		CurrentSong();
+	}).catch(function(err) {
+		console.log(err);
+	})
+}
+
+function KillSpinMPC() {
+	fetch("/api/v1/killspinmpc").then(function(response) {
+		return response.text();
+	}).then(function(text) {
+		CurrentSong();
+	}).catch(function(err) {
+		console.log(err);
+	})
 }
 
 function Next() {
@@ -261,6 +320,15 @@ function Refresh() {
 	CurrentSong();
 }
 
+function UpdateMPDatabase() {
+	fetch("/api/v1/updatempdatabase").then(function(response) {
+		return response.text();
+	}).then(function(text) {
+		CurrentSong();
+	}).catch(function(err) {
+		console.log(err);
+	})
+}
 setInterval(function() {
 	Refresh();
 }, 5000);

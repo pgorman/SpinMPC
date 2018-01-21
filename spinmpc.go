@@ -390,6 +390,25 @@ func main() {
 		}
 	})
 
+	http.HandleFunc("/api/v1/randomtoggle", func(w http.ResponseWriter, r *http.Request) {
+		s, err := (*conn).Status()
+		if err != nil {
+			log.Println(err)
+		}
+		switch s["random"] {
+		case "1":
+			(*conn).Random(false)
+			s["random"] = "0"
+		case "0":
+			(*conn).Random(true)
+			s["random"] = "1"
+		}
+		if conf.Debug {
+			log.Println("INFO: random play mode changed to:", s["random"])
+		}
+		json.NewEncoder(w).Encode(s)
+	})
+
 	http.HandleFunc("/api/v1/reconnect", func(w http.ResponseWriter, r *http.Request) {
 		err = Reconnect(conn, &conf)
 		if err != nil {

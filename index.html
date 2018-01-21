@@ -228,7 +228,6 @@ function FocusPlaylists() {
 	m.style.display = "none";
 	c.style.display = "none";
 	p.style.display = "block";
-	ListPlaylists();
 }
 
 function KillMPD() {
@@ -364,11 +363,12 @@ function UpdateMPDatabase() {
 		console.log(err);
 	})
 }
+
 setInterval(function() {
 	Refresh();
 }, 5000);
 
-Refresh()
+ListPlaylists();
+Refresh();
 </script>
-
 </body>

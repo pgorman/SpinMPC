@@ -17,9 +17,6 @@ import (
 	"github.com/fhs/gompd/mpd"
 )
 
-var err error
-var debug *bool
-
 type Configuration struct {
 	Debug bool `json:"debug"`
 	MPD   struct {
@@ -37,73 +34,33 @@ type Configuration struct {
 	} `json:"web"`
 }
 
-// Configure selects settings from defaults, the config file, and command-line flags.
-func Configure() Configuration {
-	c := flag.String("c", "/etc/spinmpc.conf", "Specify the full path to the configuration file.")
-	debug = flag.Bool("d", false, "Turn on debugging messages.")
-	mpdaddr := flag.String("mdpaddr", "", "Specify the address of the interface where MPD listens.")
-	mpdport := flag.String("mdpport", "", "Specify the port on which MPD listens.")
-	mpdpass := flag.String("mdppass", "", "Specify password required by MPD (if any).")
-	mpdkill := flag.String("mdpkill", "", "Specify the command to kill MPD.")
-	webaddr := flag.String("webaddr", "", "Specify the address of the interface where SpinMPC serves its web interface.")
-	webport := flag.String("webport", "", "Specify the port on which SpinMPC serves its web interface.")
-	webpass := flag.String("webpass", "", "Password to require for access to SpinMPC's web interface.")
-	webroot := flag.String("webroot", "", "Directory from which to serve SpinMPC's web documents.")
-	websearch := flag.String("websearch", "", "Set base URL for web searches.")
+var conf = Configuration{}
+
+func init() {
+	cf := flag.String("c", "/etc/spinmpc.conf", "Specify the full path to the configuration file.")
+	flag.BoolVar(&conf.Debug, "d", false, "Turn on debugging messages.")
+	flag.StringVar(&conf.MPD.Address, "mdpaddr", "127.0.0.1", "Specify the IP address where MPD listens.")
+	flag.StringVar(&conf.MPD.Port, "mdpport", "6600", "Specify the port on which MPD listens.")
+	flag.StringVar(&conf.MPD.Password, "mdppass", "", "Specify password required by MPD (if any).")
+	flag.StringVar(&conf.MPD.Kill, "mdpkill", "/usr/bin/mpd --kill", "Specify the command to kill MPD.")
+	flag.StringVar(&conf.Web.Address, "webaddr", "127.0.0.1", "Specify the IP address where SpinMPC serves its web interface.")
+	flag.StringVar(&conf.Web.Port, "webport", "8870", "Specify the port on which SpinMPC serves its web interface.")
+	flag.StringVar(&conf.Web.Password, "webpass", "", "Password to require for access to SpinMPC's web interface.")
+	flag.StringVar(&conf.Web.Root, "webroot", "./", "Directory from which to serve SpinMPC's web documents.")
+	flag.StringVar(&conf.Web.Search, "websearch", "https://duckduckgo.com/?q=", "Set base URL for web searches.")
 	flag.Parse()
 
-	conf := Configuration{}
-	conf.Debug = false
-	conf.MPD.Address = "127.0.0.1"
-	conf.MPD.Port = "6600"
-	conf.MPD.Password = ""
-	conf.MPD.Kill = "/usr/bin/mpd --kill"
-	conf.Web.Address = ""
-	conf.Web.Port = "8870"
-	conf.Web.Password = ""
-	conf.Web.Root = "./"
-	conf.Web.Search = "https://duckduckgo.com/?q="
-
-	f, err := os.Open(*c)
+	f, err := os.Open(*cf)
 	if err != nil {
-		log.Println("WARN: can't open config file: ", err)
+		log.Printf("can't open config file %s: ", *cf, err)
 	}
 	defer f.Close()
-	decoder := json.NewDecoder(f)
-	err = decoder.Decode(&conf)
-	if err != nil {
-		log.Println("WARN: can't decode config JSON: ", err)
-	}
-
-	if *debug {
-		conf.Debug = *debug
-	}
-	if *mpdaddr != "" {
-		conf.MPD.Address = *mpdaddr
-	}
-	if *mpdport != "" {
-		conf.MPD.Port = *mpdport
-	}
-	if *mpdpass != "" {
-		conf.MPD.Password = *mpdpass
-	}
-	if *mpdkill != "" {
-		conf.MPD.Password = *mpdkill
-	}
-	if *webaddr != "" {
-		conf.Web.Address = *webaddr
-	}
-	if *webport != "" {
-		conf.Web.Port = *webport
-	}
-	if *webpass != "" {
-		conf.Web.Password = *webpass
-	}
-	if *webroot != "" {
-		conf.Web.Root = *webroot
-	}
-	if *websearch != "" {
-		conf.Web.Search = *websearch
+	if err == nil {
+		decoder := json.NewDecoder(f)
+		err = decoder.Decode(&conf)
+		if err != nil && conf.Debug {
+			log.Println("WARN: can't decode JSON in %s", *cf, err)
+		}
 	}
 
 	if conf.Debug {
@@ -129,7 +86,6 @@ func Configure() Configuration {
 		log.Println("INFO: configured web root:", conf.Web.Root)
 		log.Println("INFO: configured web search base:", conf.Web.Search)
 	}
-	return conf
 }
 
 // ConnectMPD connects to the music player daemon.
@@ -169,7 +125,7 @@ func FillPlaylist(conn *mpd.Client) error {
 	}
 	// Don't clobber the current playlist if it's already populated!
 	if len(songs) > 0 {
-		if *debug {
+		if conf.Debug {
 			log.Println("INFO: Playlist already populated. Abandoning 'fillPlaylist'.")
 		}
 		return err
@@ -258,7 +214,6 @@ func StartStop(conn *mpd.Client) error {
 }
 
 func main() {
-	conf := Configure()
 	// This pointer to the pointer to the mpd.Client ugliness lets us
 	// connect a new client if the old one dies by substituting in the new
 	// pointer.
@@ -267,7 +222,7 @@ func main() {
 	conn = &c
 	defer (*conn).Close()
 	go KeepAlive(conn, &conf)
-	err = FillPlaylist(*conn)
+	err := FillPlaylist(*conn)
 	if err != nil {
 		log.Println(err)
 	}

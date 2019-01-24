@@ -83,7 +83,7 @@
 		top: 5.5rem;
 		z-index: 99;
 	}
-	#playlists, #advanced {
+	#genres, #playlists, #advanced {
 		display: none;
 		padding: 2rem;
 		margin-left: 10%;
@@ -98,6 +98,7 @@
 	<ul>
 		<li><a href="#" onclick="FocusControls();"</a>Controls</a></li>
 		<li><a href="#" onclick="FocusPlaylists();"</a>Playlists</a></li>
+		<li><a href="#" onclick="FocusGenres();"</a>Genres</a></li>
 		<li><a href="#" onclick="FocusAdvanced();">Advanced</a></li>
 		<li><a href="https://github.com/pgorman/SpinMPC">About SpinMPC</a></li>
 	</ul>
@@ -128,6 +129,12 @@
 <ul id="playlistlist">
 	<li><a onclick="ClearQueue();" href="#">Clear Current Play Queue</a></li>
 	<li><a onclick="AllSongs();" href="#">All Songs</a></li>
+</ul>
+</div>
+
+<div id="genres">
+<h2>Genres</h2>
+<ul id="genrelist">
 </ul>
 </div>
 
@@ -196,9 +203,11 @@ function CurrentSong() {
 function FocusAdvanced() {
 	var a = document.getElementById("advanced");
 	var c = document.getElementById("controls");
+	var g = document.getElementById("genres");
 	var m = document.getElementById("menu");
 	var p = document.getElementById("playlists");
 	m.style.display = "none";
+	g.style.display = "none";
 	c.style.display = "none";
 	p.style.display = "none";
 	a.style.display = "block";
@@ -207,9 +216,11 @@ function FocusAdvanced() {
 function FocusControls() {
 	var a = document.getElementById("advanced");
 	var c = document.getElementById("controls");
+	var g = document.getElementById("genres");
 	var p = document.getElementById("playlists");
 	var m = document.getElementById("menu");
 	a.style.display = "none";
+	g.style.display = "none";
 	m.style.display = "none";
 	p.style.display = "none";
 	c.style.display = "block";
@@ -228,12 +239,27 @@ function FocusMenu() {
 function FocusPlaylists() {
 	var a = document.getElementById("advanced");
 	var c = document.getElementById("controls");
+	var g = document.getElementById("genres");
 	var m = document.getElementById("menu");
 	var p = document.getElementById("playlists");
 	a.style.display = "none";
-	m.style.display = "none";
 	c.style.display = "none";
+	g.style.display = "none";
+	m.style.display = "none";
 	p.style.display = "block";
+}
+
+function FocusGenres() {
+	var a = document.getElementById("advanced");
+	var c = document.getElementById("controls");
+	var m = document.getElementById("menu");
+	var p = document.getElementById("playlists");
+	var g = document.getElementById("genres");
+	a.style.display = "none";
+	c.style.display = "none";
+	m.style.display = "none";
+	p.style.display = "none";
+	g.style.display = "block";
 }
 
 function KillMPD() {
@@ -288,6 +314,46 @@ function PausePlay() {
 	})
 }
 
+function ListGenres() {
+	fetch("/api/v1/listgenres").then(function(response) {
+		return response.json();
+	}).then(function(json) {
+		var ul = document.getElementById("genrelist");
+		json.forEach(function(g) {
+			var a = document.createElement("a");
+			if (g == "") {
+				a.appendChild(document.createTextNode("[unknown genre]"));
+			} else {
+				a.appendChild(document.createTextNode(g));
+			}
+			a.href = "#";
+			a.setAttribute("onclick", "GenreLoad('"+g+"');");
+			var li = document.createElement("li");
+			li.appendChild(a);
+			ul.appendChild(li);
+		})
+	}).catch(function(err) {
+		console.log(err);
+	})
+}
+
+function GenreLoad(g) {
+	fetch("/api/v1/genreload", {
+		method: "POST",
+		headers: {
+			"Accept": "application/json",
+			"Content-Type": "application/json"
+		},
+		body: JSON.stringify({
+			genre: g
+		})
+	}).then(function(response) {
+			return response.text();
+	}).catch(function(err) {
+		console.log(err);
+	})
+}
+
 function ListPlaylists() {
 	fetch("/api/v1/listplaylists").then(function(response) {
 		return response.json();
@@ -323,6 +389,7 @@ function PlaylistLoad(pl) {
 		console.log(err);
 	})
 }
+
 function Previous() {
 	fetch("/api/v1/previous").then(function(response) {
 		return response.text();
@@ -401,6 +468,7 @@ setInterval(function() {
 }, 3000);
 
 ListPlaylists();
+ListGenres();
 Refresh();
 </script>
 </body>

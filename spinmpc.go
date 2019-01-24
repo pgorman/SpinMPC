@@ -149,6 +149,19 @@ func FillPlaylist(conn *mpd.Client) error {
 	return err
 }
 
+// Genres gets a list of genres from MPD.
+func Genres(conn *mpd.Client) ([]string, error) {
+	ga, err := conn.List("genre")
+	if err != nil {
+		err = fmt.Errorf("WARN: failed to get genres from MPD: %v", err)
+	}
+	genres := make([]string, len(ga))
+	for i := 0; i < len(ga); i++ {
+		genres[i] = ga[i]
+	}
+	return genres, err
+}
+
 // KeepAlive keeps our connection to MPD open.
 func KeepAlive(conn **mpd.Client, conf *Configuration) {
 	retries := 0
@@ -255,6 +268,35 @@ func main() {
 		json.NewEncoder(w).Encode(s)
 	})
 
+	http.HandleFunc("/api/v1/genreload", func(w http.ResponseWriter, r *http.Request) {
+		var err error
+		decoder := json.NewDecoder(r.Body)
+		var g = struct {
+			genre string `json:"genre"`
+		}{}
+		err = decoder.Decode(&g)
+		if err != nil {
+			log.Println(err)
+		}
+		defer r.Body.Close()
+		err = (*conn).Clear()
+		if err != nil {
+			log.Println("WARN: failed to clear play queue: ", err)
+		}
+		/*		err = (*conn).genreLoad(g.genre, -1, -1)
+				if err != nil {
+					log.Println("WARN: failed to load genre: ", err)
+				}
+				err = StartStop(*conn)
+				if err != nil {
+					log.Println(err)
+				}
+				if conf.Debug {
+					log.Printf("INFO: loaded genre '%v'\n", g.genre)
+				}
+		*/
+	})
+
 	http.HandleFunc("/api/v1/killmpd", func(w http.ResponseWriter, r *http.Request) {
 		if conf.Debug {
 			log.Println("INFO: Received API call for 'killmpd'.")
@@ -271,6 +313,15 @@ func main() {
 		if conf.Debug {
 			log.Fatal("Exiting because of API call to 'killspinmpc'. Bye.")
 		}
+	})
+
+	http.HandleFunc("/api/v1/listgenres", func(w http.ResponseWriter, r *http.Request) {
+		gl, err := Genres(*conn)
+		if err != nil {
+			log.Println("WARN: failed to get genres: ", err)
+		}
+		fmt.Println(gl)
+		json.NewEncoder(w).Encode(gl)
 	})
 
 	http.HandleFunc("/api/v1/listplaylists", func(w http.ResponseWriter, r *http.Request) {

@@ -272,7 +272,7 @@ func main() {
 		var err error
 		decoder := json.NewDecoder(r.Body)
 		var g = struct {
-			genre string `json:"genre"`
+			Genre string `json:"genre"`
 		}{}
 		err = decoder.Decode(&g)
 		if err != nil {
@@ -283,18 +283,27 @@ func main() {
 		if err != nil {
 			log.Println("WARN: failed to clear play queue: ", err)
 		}
-		/*		err = (*conn).genreLoad(g.genre, -1, -1)
-				if err != nil {
-					log.Println("WARN: failed to load genre: ", err)
-				}
-				err = StartStop(*conn)
-				if err != nil {
-					log.Println(err)
-				}
-				if conf.Debug {
-					log.Printf("INFO: loaded genre '%v'\n", g.genre)
-				}
-		*/
+		songs, err := (*conn).Find("genre", g.Genre)
+		if err != nil {
+			log.Println("WARN: failed to find songs for genre %s:", g.Genre, err)
+		}
+		for _, s := range songs {
+			err = (*conn).Add(s["file"])
+			if err != nil {
+				log.Println("WARN: failed to add song %s to queue:", s["file"], err)
+			}
+		}
+		err = StartStop(*conn)
+		if err != nil {
+			log.Println(err)
+		}
+		if conf.Debug {
+			log.Printf("INFO: loaded genre '%v'\n", g.Genre)
+		}
+		err = (*conn).Play(-1)
+		if err != nil {
+			log.Println("WARN: failed to play: ", err)
+		}
 	})
 
 	http.HandleFunc("/api/v1/killmpd", func(w http.ResponseWriter, r *http.Request) {
@@ -320,7 +329,6 @@ func main() {
 		if err != nil {
 			log.Println("WARN: failed to get genres: ", err)
 		}
-		fmt.Println(gl)
 		json.NewEncoder(w).Encode(gl)
 	})
 
@@ -378,6 +386,10 @@ func main() {
 		}
 		if conf.Debug {
 			log.Printf("INFO: loaded  playlist '%v'\n", p.Playlist)
+		}
+		err = (*conn).Play(-1)
+		if err != nil {
+			log.Println("WARN: failed to play: ", err)
 		}
 	})
 

@@ -1,4 +1,6 @@
 // SpinMPC is a music player client for mpd.
+// Copyright 2017 Paul Gorman, and licensed under the GNU GPL.
+// See the files README.md and LICENSE.md.
 package main
 
 import (
@@ -17,7 +19,7 @@ import (
 	"github.com/fhs/gompd/mpd"
 )
 
-type Configuration struct {
+type configuration struct {
 	Debug bool `json:"debug"`
 	MPD   struct {
 		Address  string `json:"address"`
@@ -34,7 +36,7 @@ type Configuration struct {
 	} `json:"web"`
 }
 
-var conf = Configuration{}
+var conf = configuration{}
 
 func init() {
 	flag.BoolVar(&conf.Debug, "d", false, "Turn on debugging messages.")
@@ -73,7 +75,7 @@ func init() {
 }
 
 // ConnectMPD connects to the music player daemon.
-func ConnectMPD(conf *Configuration) *mpd.Client {
+func ConnectMPD(conf *configuration) *mpd.Client {
 	var conn *mpd.Client
 	var err error
 	if conf.MPD.Password == "" {
@@ -111,7 +113,7 @@ func FillPlaylist(conn *mpd.Client) error {
 	var err error
 	songs, err := conn.PlaylistInfo(-1, -1)
 	if err != nil {
-		err = fmt.Errorf("WARN: failed to get current playlist: &v", err)
+		err = fmt.Errorf("WARN: failed to get current playlist: %v", err)
 	}
 	// Don't clobber the current playlist if it's already populated!
 	if len(songs) > 0 {
@@ -153,7 +155,7 @@ func Genres(conn *mpd.Client) ([]string, error) {
 }
 
 // KeepAlive keeps our connection to MPD open.
-func KeepAlive(conn **mpd.Client, conf *Configuration) {
+func KeepAlive(conn **mpd.Client, conf *configuration) {
 	retries := 0
 	for {
 		c := *conn
@@ -184,7 +186,7 @@ func Playlists(conn *mpd.Client) ([]string, error) {
 }
 
 // Reconnect closes the current connection to MPD and opens a new one.
-func Reconnect(conn **mpd.Client, conf *Configuration) error {
+func Reconnect(conn **mpd.Client, conf *configuration) error {
 	var err error
 	if conf.Debug {
 		log.Println("INFO: reconnecting to MPD.")
@@ -197,7 +199,7 @@ func Reconnect(conn **mpd.Client, conf *Configuration) error {
 }
 
 // SearchURL constructs a URL to web search a song.
-func SearchURL(conf *Configuration, song map[string]string) string {
+func SearchURL(conf *configuration, song map[string]string) string {
 	q := url.QueryEscape(strings.Join([]string{"\"", song["Artist"], "\" \"", song["Title"], "\" \"", song["Album"], "\""}, ""))
 	return strings.Join([]string{conf.Web.Search, q}, "")
 }
@@ -211,7 +213,7 @@ func StartStop(conn *mpd.Client) error {
 	}
 	err = conn.Stop()
 	if err != nil {
-		fmt.Errorf("WARN: failed to stop playback: %v", err)
+		err = fmt.Errorf("WARN: failed to stop playback: %v", err)
 	}
 	return err
 }
@@ -275,12 +277,12 @@ func main() {
 		}
 		songs, err := (*conn).Find("genre", g.Genre)
 		if err != nil {
-			log.Println("WARN: failed to find songs for genre %s:", g.Genre, err)
+			log.Printf("WARN: failed to find songs for genre '%s': %v\n", g.Genre, err)
 		}
 		for _, s := range songs {
 			err = (*conn).Add(s["file"])
 			if err != nil {
-				log.Println("WARN: failed to add song %s to queue:", s["file"], err)
+				log.Printf("WARN: failed to add song '%s' to queue: %v\n", s["file"], err)
 			}
 		}
 		err = StartStop(*conn)

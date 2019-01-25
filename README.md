@@ -22,6 +22,7 @@ See Go's [Getting Started](https://golang.org/doc/install).
 Get SpinMPC and compile it:
 
 ```
+$  go get github.com/fhs/gompd/mpd
 $  go get github.com/pgorman/SpinMPC
 $  cd $GOPATH/src/github.com/pgorman/SpinMPC
 $  go install

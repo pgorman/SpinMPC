@@ -8,6 +8,7 @@ That's OK.
 SpinMPC's target use case is when you're hanging out with a bunch of friends, playing tunes from your media server.
 With SpinMPC, any guest can use their own phone to check what's playing or skip to the next track without leaving the couch.
 
+![SpinMPC controls and menu](screenshot01.jpg)
 
 ## Installation ##
 

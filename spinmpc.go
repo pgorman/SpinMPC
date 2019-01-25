@@ -37,7 +37,6 @@ type Configuration struct {
 var conf = Configuration{}
 
 func init() {
-	cf := flag.String("c", "/etc/spinmpc.conf", "Specify the full path to the configuration file.")
 	flag.BoolVar(&conf.Debug, "d", false, "Turn on debugging messages.")
 	flag.StringVar(&conf.MPD.Address, "mpdaddr", "127.0.0.1", "Specify the IP address where MPD listens.")
 	flag.StringVar(&conf.MPD.Port, "mpdport", "6600", "Specify the port on which MPD listens.")
@@ -45,22 +44,12 @@ func init() {
 	flag.StringVar(&conf.MPD.Kill, "mpdkill", "/usr/bin/mpd --kill", "Specify the command to kill MPD.")
 	flag.StringVar(&conf.Web.Address, "webaddr", "127.0.0.1", "Specify the IP address where SpinMPC serves its web interface.")
 	flag.StringVar(&conf.Web.Port, "webport", "8870", "Specify the port on which SpinMPC serves its web interface.")
-	flag.StringVar(&conf.Web.Password, "webpass", "", "Password to require for access to SpinMPC's web interface.")
 	flag.StringVar(&conf.Web.Root, "webroot", "./", "Directory from which to serve SpinMPC's web documents.")
 	flag.StringVar(&conf.Web.Search, "websearch", "https://duckduckgo.com/?q=", "Set base URL for web searches.")
 	flag.Parse()
 
-	f, err := os.Open(*cf)
-	if err != nil {
-		log.Printf("can't open config file %s: ", *cf, err)
-	}
-	defer f.Close()
-	if err == nil {
-		decoder := json.NewDecoder(f)
-		err = decoder.Decode(&conf)
-		if err != nil && conf.Debug {
-			log.Println("WARN: can't decode JSON in %s", *cf, err)
-		}
+	if os.Getenv("mpdpass") != "" {
+		conf.MPD.Password = os.Getenv("mpdpass")
 	}
 
 	if conf.Debug {
@@ -78,11 +67,6 @@ func init() {
 			log.Println("INFO: configured web address:", conf.Web.Address)
 		}
 		log.Println("INFO: configured web port:", conf.Web.Port)
-		if conf.Web.Password == "" {
-			log.Println("INFO: configured web password: [none]")
-		} else {
-			log.Println("INFO: configured web password: ****************************")
-		}
 		log.Println("INFO: configured web root:", conf.Web.Root)
 		log.Println("INFO: configured web search base:", conf.Web.Search)
 	}
@@ -90,7 +74,13 @@ func init() {
 
 // ConnectMPD connects to the music player daemon.
 func ConnectMPD(conf *Configuration) *mpd.Client {
-	conn, err := mpd.Dial("tcp", conf.MPD.Address+":"+conf.MPD.Port)
+	var conn *mpd.Client
+	var err error
+	if conf.MPD.Password == "" {
+		conn, err = mpd.Dial("tcp", conf.MPD.Address+":"+conf.MPD.Port)
+	} else {
+		conn, err = mpd.DialAuthenticated("tcp", conf.MPD.Address+":"+conf.MPD.Port, conf.MPD.Password)
+	}
 	if err != nil {
 		log.Fatal("ERROR: can't connect to MPD: ", err)
 	}
